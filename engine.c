@@ -3,7 +3,7 @@
 
 
 #define SCREEN_WIDTH 64
-#define SCREEN_HEIGHT 48
+#define SCREEN_HEIGHT 32
 #define RES 10
 #define FPS 60     // frames per second
 #define InstPS 200 // instructions per second
@@ -88,7 +88,8 @@ void game_loop()
     SDL_Event e;
     while(!stop)
     {
-	instStart = SDL_GetTicks(); // instruction start tick
+        // instruction start tick
+	instStart = SDL_GetTicks(); 
 
         // handle input
 	while(SDL_PollEvent(&e) != 0) 
@@ -101,19 +102,19 @@ void game_loop()
 	    }
 	}
 
-	emu_update(); // emulator update
+        // emulator update
+	emu_update();
 
 	// other updates
-	long ticks = SDL_GetTicks();
-	// printf("ticks = %ld\n", SDL_GetTicks());
+	long ticks = SDL_GetTicks(); // printf("ticks = %ld\n", SDL_GetTicks());
 	frame = ticks/frameDelay;
-	if(frame > lastFrame) // new frame
+	if(frame > lastFrame) // new frame occurs at 60 Hz
 	{
 	    draw();
-	    emu_timer--;
+	    if(delay_timer) delay_timer--;
+	    if(sound_timer) sound_timer--;
 	}
 	lastFrame = frame;
-
 
 	// delay to maintain emu_update rate ,i.e, instruction rate
 	instTime = SDL_GetTicks() - instStart; // instruction duration in ticks (1 tick = 1/1000 second) (for this frame)

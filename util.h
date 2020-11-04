@@ -1,4 +1,4 @@
-char show_byte(unsigned char a)
+char show_byte(int a)
 {
     int x = (int)a&15;
     int y = a>>4;
