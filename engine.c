@@ -11,14 +11,11 @@
 SDL_Window* window = NULL;
 SDL_Surface* surface = NULL;
 
-struct color{ int red; int blue; int green; };
-struct color screen_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+int screen_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 
 
 #include "chip8.c"
-
-
 
 
 void keypress(int key)
@@ -65,7 +62,7 @@ void draw()
 	    r.w = RES;
 	    r.h = RES;
 
-	    int c = rand()%256; // screen_buffer[i][j].red;
+	    int c = screen_buffer[i][j] * 255;
 	    SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, c, c, c));
 	}
     }
@@ -127,7 +124,7 @@ void game_loop()
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    window = SDL_CreateWindow("chip8 emulator", 100, 100, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("chip8 emulator", 500, 100, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
     surface = SDL_GetWindowSurface(window);
 
 

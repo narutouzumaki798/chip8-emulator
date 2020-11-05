@@ -1,15 +1,13 @@
-# file=engine.c
-# 
-# if gcc $file -lSDL2; then
-#    echo -e "\n\n compiler hoe geche\n\n"
-#    ./a.out
-# else
-#    echo -e "\n\n  hocche na\n\n"
-#    gcc $file -lSDL2 2>&1 | head
-# fi
+file=engine.c
 
-gcc test.c
-./a.out
+if gcc $file -lSDL2; then
+   echo -e "\n\n compiler hoe geche\n\n"
+   ./a.out
+else
+   echo -e "\n\n  hocche na\n\n"
+   gcc $file -lSDL2 2>&1 | head
+fi
+
 
 
 
