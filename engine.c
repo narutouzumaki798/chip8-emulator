@@ -92,7 +92,7 @@ void draw()
 	    r.h = RES;
 
 	    int c = screen_buffer[i][j] * 255;
-	    SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, c, c, c));
+	    SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 0, c, 0));
 	}
     }
     SDL_UpdateWindowSurface(window);
@@ -141,6 +141,7 @@ void game_loop()
 	    draw();
 	    if(delay_timer) delay_timer--;
 	    if(sound_timer) sound_timer--;
+	    debugger_update();
 	}
 	lastFrame = frame;
 

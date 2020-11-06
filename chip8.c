@@ -4,7 +4,7 @@
 // and int for 8 bit registers/locations just for convinience
 
 // original COSMAC VIP base system had 2K ram
-int mem[2048];
+int mem[4096];
 // each element of the array will store 1 byte
 int idx; // memory idx
 
@@ -20,7 +20,7 @@ int sound_timer; // sound timer
 
 int keys[16]; // keypad flags
 
-#define debug 2
+#define debug 0
 // debug mode:
 // 0 = no
 // 1 = print instructions
@@ -99,7 +99,7 @@ void load_manual_test() // 0 print kore atke jabe
 
 void draw_sprite(int X, int Y, int N)
 {
-    int star_X = X;
+    int star_X = X; V[0xF] = 0x0;
     for(int i = I; i<I+N; i++)
     {
 	X = star_X;
@@ -139,6 +139,17 @@ void stop()
     exit(1);
 }
 
+int _8bit_sub(int a, int b)
+{
+    a = a & 0x00FF;
+    b = b & 0x00FF;
+
+    b = b ^ 0xFF; b = b + 1; b = b & 0xFF; // 2's complement
+    a = a + b;
+    a = a & 0xFF;
+    return a;
+}
+
 
 #include "debugger.c"
 
@@ -159,7 +170,7 @@ void emu_start()
 
     for(int i=0; i<16; i++) keys[i] = 0;
     PC = 0x200;
-    SB = 0x07FF;
+    SB = 0x0FFF;
     SP = SB;
     delay_timer = 0;
     sound_timer = 0;
@@ -254,7 +265,8 @@ void emu_update()
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	V[X] += NN;
-	if(debug) fprintf(err_fp, "6XYN: VX = VX + NN - %x\n", inst);
+	V[X] = V[X] & 0x00FF; // 8 bit register
+	if(debug) fprintf(err_fp, "7XNN: VX = VX + NN - %x\n", inst);
 	break;
     case 0x8: // ------------------------
 	switch(inst & 0x000F)
@@ -295,7 +307,7 @@ void emu_update()
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[X] > V[Y]) V[0xF] = 0x01; else V[0xF] = 0x00; // check for borrow
-	    V[X] = V[X] - V[Y];
+	    V[X] = _8bit_sub(V[X], V[Y]);
 	    if(debug) fprintf(err_fp, "8XY5: VX = VX - VY - %x\n", inst);
 	    break;
 	case 0x0006: // VX = VY >> 1  inst:8XY6
@@ -311,7 +323,7 @@ void emu_update()
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[Y] > V[X]) V[0xF] = 0x01; else V[0xF] = 0x00; // check for borrow
-	    V[X] = V[Y] - V[X];
+	    V[X] = _8bit_sub(V[Y], V[X]);
 	    if(debug) fprintf(err_fp, "8XY7: VX = VY - VX - %x\n", inst);
 	    break;
 	case 0x000E: // VX = VY << 1  inst:8XYE
@@ -357,7 +369,7 @@ void emu_update()
 	if(debug) fprintf(err_fp, "CXNN: VX = rand() & NN - %x\n", inst);
 	break;
     case 0xD: // ------------------------ draw sprite  inst:0xDXYN
-	X = (inst & 0x0F00)>>8; X = X&64;
+	X = (inst & 0x0F00)>>8; X = X%64;
 	Y = (inst & 0x00F0)>>4; Y = Y%32;
 	N = inst & 0x000F;
 	draw_sprite(V[X], V[Y], N);
@@ -451,7 +463,6 @@ void emu_update()
 	int ch = getchar();
 	if(ch == 'x') stop();
     }
-    debugger_update();
 }
 
 
