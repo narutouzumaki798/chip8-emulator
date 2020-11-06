@@ -22,29 +22,19 @@ void keypress(int key)
 {
     switch(key)
     {
-    case SDLK_UP:
+    case 'e':
+	break;
+    case 'r':
+	break;
+    case 'u':
+	break;
+    case 'i':
+	break;
+    case 'w':
+	break;
+    case 'w':
 	break;
 
-    case SDLK_DOWN:
-	break;
-
-    case SDLK_LEFT:
-	break;
-
-    case SDLK_RIGHT:
-	break;
-
-    case SDLK_w:
-	break;
-
-    case SDLK_s:
-	break;
-
-    case SDLK_a:
-	break;
-
-    case SDLK_d:
-	break;
     }
 }
 

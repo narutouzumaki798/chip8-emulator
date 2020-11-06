@@ -17,7 +17,16 @@ int V[16]; // register file
 int delay_timer; // delay timer
 int sound_timer; // sound timer
 
-#define debug 1
+int key[16]; // keypad flags
+
+#define debug 2
+// debug mode:
+// 0 = no
+// 1 = print instructions
+// 2 = step through instructions
+
+
+
 #define SUPER 0 // whether emulating super-chip
 
 void load_rom(char* rom_file)
@@ -84,7 +93,7 @@ void draw_sprite(int X, int Y, int N)
 }
 
 
-void load_manual_test()
+void load_manual_test() // 0 print kore atke jabe
 {
     int i = 0x200; 
     mem[i] = 0xA1; i++;
@@ -121,9 +130,11 @@ void emu_start()
 	    screen_buffer[i][j] = 0; 
 	}
     }
+    load_font();
     load_rom("ibm.ch8");
     // load_manual_test();
-    load_font();
+
+    for(int i=0; i<16; i++) key[i] = 0;
     PC = 0x200;
     SB = 0x07FF;
     SP = SB;
@@ -134,7 +145,7 @@ void emu_start()
 // update
 void emu_update()
 {
-    if(PC >= idx)
+    if(PC >= idx)  // hoa uchit noe
     {
 	// printf("\n\n  hoe geche PC > rom size\n\n");
 	// exit(1);
@@ -408,7 +419,8 @@ void emu_update()
 	printf("invalid instruction\n");
 	break;
     }
-    if(debug)
+
+    if(debug == 2) // step through
     {
 	int ch = getchar();
 	if(ch == 97) stop();
