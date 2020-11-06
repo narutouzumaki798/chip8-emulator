@@ -1,6 +1,6 @@
 file=engine.c
 
-if gcc $file -lSDL2; then
+if gcc $file -lSDL2 -lncurses; then
    echo -e "\n\n compiler hoe geche\n\n"
    ./a.out
 else

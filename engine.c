@@ -22,19 +22,57 @@ void keypress(int key)
 {
     switch(key)
     {
-    case 'e':
+    case '4':
+	keys[0x1] = 1;
 	break;
-    case 'r':
+    case '5':
+	keys[0x2] = 1;
 	break;
-    case 'u':
+    case '6':
+	keys[0x3] = 1;
 	break;
-    case 'i':
-	break;
-    case 'w':
-	break;
-    case 'w':
+    case '7':
+	keys[0xc] = 1;
 	break;
 
+    case 'r':
+	keys[0x4] = 1;
+	break;
+    case 't':
+	keys[0x5] = 1;
+	break;
+    case 'y':
+	keys[0x6] = 1;
+	break;
+    case 'u':
+	keys[0xD] = 1;
+	break;
+
+    case 'f':
+	keys[0x7] = 1;
+	break;
+    case 'g':
+	keys[0x8] = 1;
+	break;
+    case 'h':
+	keys[0x9] = 1;
+	break;
+    case 'j':
+	keys[0xE] = 1;
+	break;
+
+    case 'v':
+	keys[0xA] = 1;
+	break;
+    case 'b':
+	keys[0x0] = 1;
+	break;
+    case 'n':
+	keys[0xB] = 1;
+	break;
+    case 'm':
+	keys[0xF] = 1;
+	break;
     }
 }
 
@@ -70,15 +108,19 @@ void game_loop()
     long instTime, instStart; // instruction duration in ticks and instruction start tick
     long lastFrame = 0, frame; // each frame is 'frameDelay' ticks
 
+    FILE* err_fp = fopen("err.txt", "w");
+
     emu_start(); // emulator init
     short stop = 0;
     SDL_Event e;
     while(!stop)
     {
+	fprintf(err_fp, "ticks: %d\n", SDL_GetTicks()); fflush(err_fp);
         // instruction start tick
 	instStart = SDL_GetTicks(); 
 
         // handle input
+	for(int i=0; i<16; i++) keys[i] = 0;
 	while(SDL_PollEvent(&e) != 0) 
 	{
 	    if(e.type == SDL_QUIT)

@@ -1,4 +1,6 @@
 
+#include "util.h"
+
 // i will use long 16 bit registers/locations
 // and int for 8 bit registers/locations just for convinience
 
@@ -17,7 +19,7 @@ int V[16]; // register file
 int delay_timer; // delay timer
 int sound_timer; // sound timer
 
-int key[16]; // keypad flags
+int keys[16]; // keypad flags
 
 #define debug 2
 // debug mode:
@@ -28,6 +30,9 @@ int key[16]; // keypad flags
 
 
 #define SUPER 0 // whether emulating super-chip
+
+
+
 
 void load_rom(char* rom_file)
 {
@@ -40,14 +45,16 @@ void load_rom(char* rom_file)
 
     // load in memory starting from address 0x200 as per orignal COSMAC VIP convention
     // in order to play old games
-    // FILE* err_fp = fopen("debug.txt", "w");
+    FILE* err_fp = fopen("err.txt", "w");
     idx = 0x200;
     for(i=0; i<N; i++)
     {
 	mem[idx++] = (int)buffer[i];
-	// fprintf(err_fp, "%x: %x\n", idx, mem[idx-1]);
     }
-    // fclose(err_fp);
+    for(i=0x200; i<0x200+N; i++)
+	if(i%2 == 1)
+	    fprintf(err_fp, "%s: %s\n", to_hex(i-1), to_hex((mem[i-1]<<8)|mem[i]) );
+    fclose(err_fp);
 }   
 
 void load_font()
@@ -71,6 +78,25 @@ void load_font()
     mem[i] = 0xF0;   mem[i+1] = 0x80;   mem[i+2] = 0xF0;   mem[i+3] = 0x80;   mem[i+4] = 0x80; i += 5; // F
 }
 
+void load_manual_test() // 0 print kore atke jabe
+{
+    int i = 0x200; 
+    mem[i] = 0xA1; i++;
+    mem[i] = 0x00; i++;  // 0x200: 0xA100 
+
+    mem[i] = 0x60; i++;
+    mem[i] = 0x10; i++;  // 0x202: 0x6010 
+
+    mem[i] = 0x61; i++;
+    mem[i] = 0x02; i++;  // 0x204: 0x6102 
+
+    mem[i] = 0xD0; i++;
+    mem[i] = 0x15; i++;  // 0x206: 0xD015 
+
+    mem[i] = 0x12; i++;
+    mem[i] = 0x08; i++;  // 0x208: 0x1208 
+}
+
 void draw_sprite(int X, int Y, int N)
 {
     int star_X = X;
@@ -92,33 +118,27 @@ void draw_sprite(int X, int Y, int N)
     }
 }
 
-
-void load_manual_test() // 0 print kore atke jabe
+int check_key(int X)
 {
-    int i = 0x200; 
-    mem[i] = 0xA1; i++;
-    mem[i] = 0x00; i++;  // 0x200: 0xA100 
-
-    mem[i] = 0x60; i++;
-    mem[i] = 0x10; i++;  // 0x202: 0x6010 
-
-    mem[i] = 0x61; i++;
-    mem[i] = 0x02; i++;  // 0x204: 0x6102 
-
-    mem[i] = 0xD0; i++;
-    mem[i] = 0x15; i++;  // 0x206: 0xD015 
-
-    mem[i] = 0x12; i++;
-    mem[i] = 0x08; i++;  // 0x208: 0x1208 
+    int flag = 0;
+    for(int i=0; i<16; i++)
+    {
+	if(keys[i])
+	{
+	    V[X] = i;
+	    flag = 1;
+	}
+    }
+    return flag;
 }
 
+#include "debug.c"
 void stop()
 {
+    curses_end();
     SDL_DestroyWindow(window);
     SDL_Quit();
-    exit(1);
 }
-
 
 // init
 void emu_start()
@@ -131,15 +151,16 @@ void emu_start()
 	}
     }
     load_font();
-    load_rom("ibm.ch8");
+    load_rom("space_invaders.ch8");
     // load_manual_test();
 
-    for(int i=0; i<16; i++) key[i] = 0;
+    for(int i=0; i<16; i++) keys[i] = 0;
     PC = 0x200;
     SB = 0x07FF;
     SP = SB;
     delay_timer = 0;
     sound_timer = 0;
+    curses_init();
 }
 
 // update
@@ -147,7 +168,7 @@ void emu_update()
 {
     if(PC >= idx)  // hoa uchit noe
     {
-	// printf("\n\n  hoe geche PC > rom size\n\n");
+	printf("  rom er baere\n");
 	// exit(1);
     }
 
@@ -343,11 +364,13 @@ void emu_update()
     case 0xE: // ------------------------
 	switch(0x00FF)
 	{
-	case 0x009E:
-	    printf(">> skip if key pressed\n");
+	case 0x009E: // skip if key pressed  inst:0xEX9E
+	    X = (inst & 0x0F00)>>8;
+	    if(keys[V[X]]) PC += 2;
 	    break;
-	case 0x00A1:
-	    printf(">> skip if key not pressed\n");
+	case 0x00A1: // skip if key not pressed  inst:0xEXA1
+	    X = (inst & 0x0F00)>>8;
+	    if(!keys[V[X]]) PC += 2;
 	    break;
 	default:
 	    printf("invalid instruction\n");
@@ -363,7 +386,8 @@ void emu_update()
 	    if(debug) printf("FX07: VX = delay_timer - %x\n", inst);
 	    break;
 	case 0x000A: // VX  = input  inst:0xFX0A
-	    if(debug) printf("FX0A: VX = input - %x\n", inst);
+	    X = (inst & 0x0F00)>>8;
+	    if(!check_key(X)) PC -= 2;
 	    break;
 	case 0x0015: // delay_timer = VX  inst:0xFX15
 	    X = (inst & 0x0F00)>>8;
@@ -422,9 +446,11 @@ void emu_update()
 
     if(debug == 2) // step through
     {
-	int ch = getchar();
-	if(ch == 97) stop();
+	int ch = getch();
+	// if(ch == 'r') show_registers();
+	// if(ch == 'x') stop();
     }
+    // debug_update();
 }
 
 
