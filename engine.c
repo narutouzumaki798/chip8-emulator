@@ -1,5 +1,6 @@
-#include "stdio.h"
-#include "SDL2/SDL.h"
+#include <unistd.h>
+#include <stdio.h>
+#include <SDL2/SDL.h>
 
 
 #define SCREEN_WIDTH 64
@@ -14,7 +15,7 @@ SDL_Surface* surface = NULL;
 int screen_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 
-
+#include "util.h"
 #include "chip8.c"
 
 
@@ -108,14 +109,12 @@ void game_loop()
     long instTime, instStart; // instruction duration in ticks and instruction start tick
     long lastFrame = 0, frame; // each frame is 'frameDelay' ticks
 
-    FILE* err_fp = fopen("err.txt", "w");
 
     emu_start(); // emulator init
     short stop = 0;
     SDL_Event e;
     while(!stop)
     {
-	fprintf(err_fp, "ticks: %d\n", SDL_GetTicks()); fflush(err_fp);
         // instruction start tick
 	instStart = SDL_GetTicks(); 
 
@@ -135,7 +134,7 @@ void game_loop()
 	emu_update();
 
 	// other updates
-	long ticks = SDL_GetTicks(); // printf("ticks = %ld\n", SDL_GetTicks());
+	long ticks = SDL_GetTicks();
 	frame = ticks/frameDelay;
 	if(frame > lastFrame) // new frame occurs at 60 Hz
 	{
@@ -156,7 +155,7 @@ void game_loop()
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    window = SDL_CreateWindow("chip8 emulator", 500, 100, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("chip8 emulator", 650, 100, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
     surface = SDL_GetWindowSurface(window);
 
 

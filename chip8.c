@@ -1,5 +1,4 @@
 
-#include "util.h"
 
 // i will use long 16 bit registers/locations
 // and int for 8 bit registers/locations just for convinience
@@ -33,6 +32,8 @@ int keys[16]; // keypad flags
 
 
 
+// debug output
+FILE* err_fp;
 
 void load_rom(char* rom_file)
 {
@@ -45,16 +46,15 @@ void load_rom(char* rom_file)
 
     // load in memory starting from address 0x200 as per orignal COSMAC VIP convention
     // in order to play old games
-    FILE* err_fp = fopen("err.txt", "w");
+    // FILE* err_fp = fopen("err.txt", "w");
     idx = 0x200;
     for(i=0; i<N; i++)
-    {
 	mem[idx++] = (int)buffer[i];
-    }
-    for(i=0x200; i<0x200+N; i++)
-	if(i%2 == 1)
-	    fprintf(err_fp, "%s: %s\n", to_hex(i-1), to_hex((mem[i-1]<<8)|mem[i]) );
-    fclose(err_fp);
+
+    // for(i=0x200; i<0x200+N; i++)
+    // 	if(i%2 == 1)
+    // 	    fprintf(err_fp, "%s: %s\n", to_hex(i-1), to_hex((mem[i-1]<<8)|mem[i]) );
+    // fclose(err_fp);
 }   
 
 void load_font()
@@ -132,13 +132,15 @@ int check_key(int X)
     return flag;
 }
 
-#include "debug.c"
 void stop()
 {
-    curses_end();
     SDL_DestroyWindow(window);
     SDL_Quit();
+    exit(1);
 }
+
+
+#include "debugger.c"
 
 // init
 void emu_start()
@@ -150,6 +152,7 @@ void emu_start()
 	    screen_buffer[i][j] = 0; 
 	}
     }
+    err_fp = fopen("err.txt", "w");
     load_font();
     load_rom("space_invaders.ch8");
     // load_manual_test();
@@ -160,7 +163,6 @@ void emu_start()
     SP = SB;
     delay_timer = 0;
     sound_timer = 0;
-    curses_init();
 }
 
 // update
@@ -168,7 +170,7 @@ void emu_update()
 {
     if(PC >= idx)  // hoa uchit noe
     {
-	printf("  rom er baere\n");
+	fprintf(err_fp, "  rom er baere\n");
 	// exit(1);
     }
 
@@ -178,7 +180,7 @@ void emu_update()
     inst = inst | mem[PC]; PC++;
     int X, Y, N, NN, NNN, mem_idx;
 
-    if(debug) printf("PC = %x :   ", PC - 2);
+    if(debug) fprintf(err_fp, "PC = %x :   ", PC - 2);
 
     // decode & execute
     switch((int)inst>>12)
@@ -194,39 +196,39 @@ void emu_update()
 		    screen_buffer[i][j] = 0;
 		}
 	    }
-	    if(debug) printf("00E0: clear screen - %x\n", inst);
+	    if(debug) fprintf(err_fp, "00E0: clear screen - %x\n", inst);
 	    break;
 	case 0x00EE: // return from a subroutine  inst:00EE
-	    if(SP == SB) { printf("stack already empty\n"); exit(1); }
+	    if(SP == SB) { fprintf(err_fp, "stack already empty\n"); exit(1); }
 	    long ret = mem[++SP];
 	    PC = ret;
-	    if(debug) printf("00EE: return from subroutine - %x\n", inst);
+	    if(debug) fprintf(err_fp, "00EE: return from subroutine - %x\n", inst);
 	    break;
 	default: // machine language routine  inst:0NNN
-	    printf("execute machine language routine\n");
+	    fprintf(err_fp, "execute machine language routine\n");
 	    break;
 	}
 	break;
     case 0x1: // ------------------------ // jump to address  inst:1NNN
 	PC = inst & 0x0FFF;
-	if(debug) printf("1NNN: jump to address - %x\n", inst);
+	if(debug) fprintf(err_fp, "1NNN: jump to address - %x\n", inst);
 	break;
     case 0x2: // ------------------------ // call subroutine  inst:2NNN
 	mem[SP--] = PC;
 	PC = inst & 0x0FFF;
-	if(debug) printf("2NNN: call subroutine - %x\n", inst);
+	if(debug) fprintf(err_fp, "2NNN: call subroutine - %x\n", inst);
 	break;
     case 0x3: // ------------------------ // skip if VX == NN  inst:3XNN
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	if(V[X] == NN) PC += 2;
-	if(debug) printf("3XNN: skip - %x\n", inst);
+	if(debug) fprintf(err_fp, "3XNN: skip - %x\n", inst);
 	break;
     case 0x4: // ------------------------ // skip if VX != NN  inst:4XNN
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	if(V[X] != NN) PC += 2;
-	if(debug) printf("4XNN: skip - %x\n", inst);
+	if(debug) fprintf(err_fp, "4XNN: skip - %x\n", inst);
 	break;
     case 0x5: // ------------------------
 	switch(inst & 0x000F)
@@ -235,10 +237,10 @@ void emu_update()
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[X] == V[Y]) PC += 2;
-	    if(debug) printf("5XYN: skip - %x\n", inst);
+	    if(debug) fprintf(err_fp, "5XYN: skip - %x\n", inst);
 	    break;
 	default:
-	    printf("invalid instruction: %x\n", inst);
+	    fprintf(err_fp, "invalid instruction: %x\n", inst);
 	    break;
 	}
 	break;
@@ -246,13 +248,13 @@ void emu_update()
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	V[X] = NN;
-	if(debug) printf("6XNN: VX = NN - %x\n", inst);
+	if(debug) fprintf(err_fp, "6XNN: VX = NN - %x\n", inst);
 	break;
     case 0x7: // ------------------------ VX = VX + NN  inst:7XNN
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	V[X] += NN;
-	if(debug) printf("6XYN: VX = VX + NN - %x\n", inst);
+	if(debug) fprintf(err_fp, "6XYN: VX = VX + NN - %x\n", inst);
 	break;
     case 0x8: // ------------------------
 	switch(inst & 0x000F)
@@ -261,25 +263,25 @@ void emu_update()
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    V[X] = V[Y];
-	    if(debug) printf("8XY0: VX = VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY0: VX = VY - %x\n", inst);
 	    break;
 	case 0x0001: // VX = VX | VY  inst:8XY1
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    V[X] = V[X] | V[Y];
-	    if(debug) printf("8XY1: VX = VX | VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY1: VX = VX | VY - %x\n", inst);
 	    break;
 	case 0x0002: // VX = VX & VY  inst:8XY2
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    V[X] = V[X] & V[Y];
-	    if(debug) printf("8XY2: VX = VX & VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY2: VX = VX & VY - %x\n", inst);
 	    break;
 	case 0x0003: // VX = VX ^ VY  inst:8XY3
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    V[X] = V[X] ^ V[Y];
-	    if(debug) printf("8XY3: VX = VX ^ VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY3: VX = VX ^ VY - %x\n", inst);
 	    break;
 	case 0x0004: // VX = VX + VY  inst:8XY4
 	    X = (inst & 0x0F00)>>8;
@@ -287,14 +289,14 @@ void emu_update()
 	    V[X] = V[X] + V[Y];
 	    if(V[X] & 0x0100) V[0xF] = 0x01; else V[0xF] = 0x00; // check for carry 
 	    V[X] = V[X] & 0x00FF; // 8 bit register
-	    if(debug) printf("8XY4: VX = VX + VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY4: VX = VX + VY - %x\n", inst);
 	    break;
 	case 0x0005: // VX = VX - VY  inst:8XY5
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[X] > V[Y]) V[0xF] = 0x01; else V[0xF] = 0x00; // check for borrow
 	    V[X] = V[X] - V[Y];
-	    if(debug) printf("8XY5: VX = VX - VY - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY5: VX = VX - VY - %x\n", inst);
 	    break;
 	case 0x0006: // VX = VY >> 1  inst:8XY6
 	    X = (inst & 0x0F00)>>8;
@@ -303,14 +305,14 @@ void emu_update()
 	    V[0xF] = V[X] & 0x0001;
 	    V[X] = V[X] >> 1;
 	    V[X] = V[X] & 0x00FF; // 8 bit register
-	    if(debug) printf("8XY6: VX = VY >> 1 - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY6: VX = VY >> 1 - %x\n", inst);
 	    break;
 	case 0x0007: // VX = VY - VX  inst:8XY7
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[Y] > V[X]) V[0xF] = 0x01; else V[0xF] = 0x00; // check for borrow
 	    V[X] = V[Y] - V[X];
-	    if(debug) printf("8XY7: VX = VY - VX - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XY7: VX = VY - VX - %x\n", inst);
 	    break;
 	case 0x000E: // VX = VY << 1  inst:8XYE
 	    X = (inst & 0x0F00)>>8;
@@ -319,10 +321,10 @@ void emu_update()
 	    V[0xF] = V[X] & 0x0080;
 	    V[X] = V[X] << 1;
 	    V[X] = V[X] & 0x00FF; // 8 bit register
-	    if(debug) printf("8XYE: VX = VY << 1 - %x\n", inst);
+	    if(debug) fprintf(err_fp, "8XYE: VX = VY << 1 - %x\n", inst);
 	    break;
 	default:
-	    printf("invalid instruction\n");
+	    fprintf(err_fp, "invalid instruction\n");
 	    break;
 	}
 	break;
@@ -333,33 +335,33 @@ void emu_update()
 	    X = (inst & 0x0F00)>>8;
 	    Y = (inst & 0x00F0)>>4;
 	    if(V[X] != V[Y]) PC += 2;
-	    if(debug) printf("9XY0: skip - %x\n", inst);
+	    if(debug) fprintf(err_fp, "9XY0: skip - %x\n", inst);
 	    break;
 	default:
-	    printf("invalid instruction\n");
+	    fprintf(err_fp, "invalid instruction\n");
 	    break;
 	}
 	break;
     case 0xA: // ------------------------ I = NNN  inst:0xANNN
 	I = (inst & 0x0FFF);
-	if(debug) printf("ANNN: I = NNN - %x\n", inst);
+	if(debug) fprintf(err_fp, "ANNN: I = NNN - %x\n", inst);
 	break;
     case 0xB: // ------------------------ jump to NNN + V0  inst:0xBNNN
 	PC = V[0] + (inst & 0x0FFF);
-	if(debug) printf("BNNN: jump to NNN + V0 - %x\n", inst);
+	if(debug) fprintf(err_fp, "BNNN: jump to NNN + V0 - %x\n", inst);
 	break;
     case 0xC: // ------------------------ VX = rand() & NN  inst:CXNN
 	X = (inst & 0x0F00)>>8;
 	NN = (inst & 0x00FF);
 	V[X] = rand() & NN;
-	if(debug) printf("CXNN: VX = rand() & NN - %x\n", inst);
+	if(debug) fprintf(err_fp, "CXNN: VX = rand() & NN - %x\n", inst);
 	break;
     case 0xD: // ------------------------ draw sprite  inst:0xDXYN
 	X = (inst & 0x0F00)>>8; X = X&64;
 	Y = (inst & 0x00F0)>>4; Y = Y%32;
 	N = inst & 0x000F;
 	draw_sprite(V[X], V[Y], N);
-	if(debug) printf("DXYN: draw sprite - %x\n", inst);
+	if(debug) fprintf(err_fp, "DXYN: draw sprite - %x\n", inst);
 	break;
     case 0xE: // ------------------------
 	switch(0x00FF)
@@ -373,7 +375,7 @@ void emu_update()
 	    if(!keys[V[X]]) PC += 2;
 	    break;
 	default:
-	    printf("invalid instruction\n");
+	    fprintf(err_fp, "invalid instruction\n");
 	    break;
 	}
 	break;
@@ -383,7 +385,7 @@ void emu_update()
 	case 0x0007: // VX = delay timer  inst:0xFX07
 	    X = (inst & 0x0F00)>>8;
 	    V[X] = delay_timer;
-	    if(debug) printf("FX07: VX = delay_timer - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX07: VX = delay_timer - %x\n", inst);
 	    break;
 	case 0x000A: // VX  = input  inst:0xFX0A
 	    X = (inst & 0x0F00)>>8;
@@ -392,30 +394,30 @@ void emu_update()
 	case 0x0015: // delay_timer = VX  inst:0xFX15
 	    X = (inst & 0x0F00)>>8;
 	    delay_timer = V[X];
-	    if(debug) printf("FX15: delay_timer = VX - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX15: delay_timer = VX - %x\n", inst);
 	    break;
 	case 0x0018: // sound_timer = VX  inst:0xFX18
 	    X = (inst & 0x0F00)>>8;
 	    sound_timer = V[X];
-	    if(debug) printf("FX18: sound_timer = VX - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX18: sound_timer = VX - %x\n", inst);
 	    break;
 	case 0x001E: // I = I + VX  inst:0xFX1E
 	    X = (inst & 0x0F00)>>8;
 	    I = I + V[X];
-	    if(debug) printf("FX1E: I = I + VX - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX1E: I = I + VX - %x\n", inst);
 	    break;
 	case 0x0029: // get font addres in I  inst:0xFX29
 	    X = (inst & 0x0F00)>>8;
 	    int f = V[X] & 0x0F;
 	    I = 0x100 + f*5;
-	    if(debug) printf("FX29: get font address in I - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX29: get font address in I - %x\n", inst);
 	    break;
 	case 0x0033: // binary coded decimal  inst:0xFX33
 	    X = (inst & 0x0F00)>>8;
 	    mem[I] = V[X]/100;
 	    mem[I+1] = (V[X]/10)%10;
 	    mem[I+2] = V[X]%10;
-	    if(debug) printf("FX33: binary coded decimal - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX33: binary coded decimal - %x\n", inst);
 	    break;
 	case 0x0055: // store registers in memory  inst:0xFX55
 	    X = (inst & 0x0F00)>>8;
@@ -425,7 +427,7 @@ void emu_update()
 		mem[mem_idx] = V[i];
 		mem_idx++;
 	    }
-	    if(debug) printf("FX55: store registers - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX55: store registers - %x\n", inst);
 	    break;
 	case 0x0065: // get registers from memory  inst:0xFX65
 	    X = (inst & 0x0F00)>>8;
@@ -435,22 +437,21 @@ void emu_update()
 		V[i] = mem[mem_idx];
 		mem_idx++;
 	    }
-	    if(debug) printf("FX65: get registers - %x\n", inst);
+	    if(debug) fprintf(err_fp, "FX65: get registers - %x\n", inst);
 	    break;
 	}
 	break;
     default: // ------------------------
-	printf("invalid instruction\n");
+	fprintf(err_fp, "invalid instruction\n");
 	break;
     }
 
     if(debug == 2) // step through
     {
-	int ch = getch();
-	// if(ch == 'r') show_registers();
-	// if(ch == 'x') stop();
+	int ch = getchar();
+	if(ch == 'x') stop();
     }
-    // debug_update();
+    debugger_update();
 }
 
 

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "debug.c"
 
 #include "util.h"
 
@@ -45,12 +44,12 @@ int test()
 
 int main()
 {
-    curses_init();
-    while(1)
-    {
-	int ch = getch();
-	debug_update();
-    }
+    char tmp = NULL;
+    append1(&tmp, "registers");
+    printf("tmp: %s\n", tmp);
+    free(tmp); tmp = NULL;
+    append1(&tmp, "V");
+    printf("tmp: %s\n", tmp);
     return 0;
 }
 
