@@ -1,7 +1,7 @@
 file=engine.c
 
-if gcc $file -lSDL2 -lncurses; then
-   echo -e "\n\n compiler hoe geche\n\n"
+if gcc $file -lSDL2 -lncurses -lpthread; then
+   echo -e "\n\n compile hoe geche\n\n"
    ./a.out
 else
    echo -e "\n\n  hocche na\n\n"

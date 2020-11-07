@@ -1,13 +1,17 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <semaphore.h>
+#include <ncurses.h>
 
 
 #define SCREEN_WIDTH 64
 #define SCREEN_HEIGHT 32
 #define RES 10
 #define FPS 60     // frames per second
-#define InstPS 200 // instructions per second
+#define InstPS 100 // instructions per second
 
 SDL_Window* window = NULL;
 SDL_Surface* surface = NULL;
@@ -19,62 +23,71 @@ int screen_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 #include "chip8.c"
 
 
-void keypress(int key)
+void keypress(int key, int down)
 {
+    sem_wait(semaphore1);
     switch(key)
     {
     case '4':
-	keys[0x1] = 1;
+	keys[0x1] = down;
 	break;
     case '5':
-	keys[0x2] = 1;
+	keys[0x2] = down;
 	break;
     case '6':
-	keys[0x3] = 1;
+	keys[0x3] = down;
 	break;
     case '7':
-	keys[0xc] = 1;
+	keys[0xc] = down;
 	break;
 
     case 'r':
-	keys[0x4] = 1;
+	keys[0x4] = down;
 	break;
     case 't':
-	keys[0x5] = 1;
+	keys[0x5] = down;
 	break;
     case 'y':
-	keys[0x6] = 1;
+	keys[0x6] = down;
 	break;
     case 'u':
-	keys[0xD] = 1;
+	keys[0xD] = down;
 	break;
 
     case 'f':
-	keys[0x7] = 1;
+	keys[0x7] = down;
+	fprintf(err_fp, "keypress: f down=%d pid=%d\n", down, pid); fflush(err_fp);
 	break;
     case 'g':
-	keys[0x8] = 1;
+	keys[0x8] = down;
 	break;
     case 'h':
-	keys[0x9] = 1;
+	keys[0x9] = down;
 	break;
     case 'j':
-	keys[0xE] = 1;
+	keys[0xE] = down;
+	fprintf(err_fp, "keypress: j down=%d pid=%d\n", down, pid); fflush(err_fp);
 	break;
 
     case 'v':
-	keys[0xA] = 1;
+	keys[0xA] = down;
 	break;
     case 'b':
-	keys[0x0] = 1;
+	keys[0x0] = down;
 	break;
     case 'n':
-	keys[0xB] = 1;
+	keys[0xB] = down;
 	break;
     case 'm':
-	keys[0xF] = 1;
+	keys[0xF] = down;
+	break;
+
+    case 'x':
+	sem_post(semaphore1);
+	stop();
 	break;
     }
+    sem_post(semaphore1);
 }
 
 
@@ -119,14 +132,19 @@ void game_loop()
 	instStart = SDL_GetTicks(); 
 
         // handle input
-	for(int i=0; i<16; i++) keys[i] = 0;
 	while(SDL_PollEvent(&e) != 0) 
 	{
 	    if(e.type == SDL_QUIT)
 		stop = 1;
 	    else if(e.type == SDL_KEYDOWN)
 	    {
-		keypress(e.key.keysym.sym);
+		keypress(e.key.keysym.sym, 1);
+		fprintf(err_fp, "sdl_poll: key down : %c\n", e.key.keysym.sym); fflush(err_fp);
+	    }
+	    else if(e.type == SDL_KEYUP)
+	    {
+		keypress(e.key.keysym.sym, 0);
+		fprintf(err_fp, "sdl_poll: key up: %c\n", e.key.keysym.sym); fflush(err_fp);
 	    }
 	}
 
@@ -156,9 +174,8 @@ void game_loop()
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    window = SDL_CreateWindow("chip8 emulator", 650, 100, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("chip8 emulator", 900, 520, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
     surface = SDL_GetWindowSurface(window);
-
 
     game_loop();
 
