@@ -17,7 +17,7 @@ void* create_shared_memory(size_t size) {
     // but the manpage for `mmap` explains their purpose.
     return mmap(NULL, size, protection, visibility, -1, 0);
 }
-void debugger_addstr(char ptr[][100], int x, int y, char** str)
+void state_addstr(char ptr[][100], int x, int y, char** str)
 {
     int i = 0;
     while((*str)[i] != '\0')
@@ -27,7 +27,7 @@ void debugger_addstr(char ptr[][100], int x, int y, char** str)
     }
     free(*str); (*str) = NULL;
 }
-void debugger_reset()
+void state_reset()
 {
     for(int i=0; i<100; i++)
     {
@@ -38,7 +38,7 @@ void debugger_reset()
 	}
     }
 }
-void debugger_display()
+void state_display()
 {
     // register
     for(int i=0; i<12; i++)
@@ -162,16 +162,16 @@ void debugger_display()
     wrefresh(keys_screen);
 }
 
-void debugger_update()
+void state_update()
 {
-    debugger_reset();
+    state_reset();
     int x, y;
     char* tmp = NULL;
 
     // registers
     x = 0; y = 0;
     append1(&tmp, "Registers:");
-    debugger_addstr(register_buffer, x, y, &tmp); y+=2;
+    state_addstr(register_buffer, x, y, &tmp); y+=2;
     for(int i=0; i<8; i++)
     {
 	char r = (i < 10) ? ('0'+i) : ('A' + (i-10));
@@ -180,7 +180,7 @@ void debugger_update()
 	append1(&tmp, ": ");
 	append1(&tmp, to_hex1(V[i]));
 	// printf("tmp: %s\n", tmp);
-	debugger_addstr(register_buffer, x, y, &tmp);
+	state_addstr(register_buffer, x, y, &tmp);
 	y++;
     }
     x += 12; y = 2;
@@ -191,23 +191,23 @@ void debugger_update()
 	append2(&tmp, r);
 	append1(&tmp, ": ");
 	append1(&tmp, to_hex1(V[i]));
-	debugger_addstr(register_buffer, x, y, &tmp);
+	state_addstr(register_buffer, x, y, &tmp);
 	y++;
     }
     x += 12; y = 2;
     append1(&tmp, "PC : ");
     append1(&tmp, to_hex2((*PC)));
-    debugger_addstr(register_buffer, x, y, &tmp);
+    state_addstr(register_buffer, x, y, &tmp);
     y++;
     append1(&tmp, "I  : ");
     append1(&tmp, to_hex2((*I)));
-    debugger_addstr(register_buffer, x, y, &tmp);
+    state_addstr(register_buffer, x, y, &tmp);
     y++;
 
     // memory
     x = 0; y = 0;
     append1(&tmp, "Memory:");
-    debugger_addstr(memory_buffer, x, y, &tmp);  y+=2;
+    state_addstr(memory_buffer, x, y, &tmp);  y+=2;
     int mem_idx = (*PC) - 14;
     for(int j=0; j<3; j++)
     {
@@ -221,7 +221,7 @@ void debugger_update()
 	    append1(&tmp, to_hex2(mem_idx));
 	    append1(&tmp, ": ");
 	    append1(&tmp, to_hex1(mem[mem_idx]));
-	    debugger_addstr(memory_buffer, x, y, &tmp);
+	    state_addstr(memory_buffer, x, y, &tmp);
 	    y++; mem_idx++;
 	}
 	x += 17; y = 2;
@@ -244,7 +244,7 @@ void curses_end()
     endwin();
 }
 
-void debugger()
+void internal_state()
 {
     curses_init();
     register_screen = newwin(15, 60, 1, 5);
@@ -257,21 +257,20 @@ void debugger()
     wrefresh(memory_screen);
     wrefresh(keys_screen);
 
-    debugger_reset();
+    state_reset();
     while(1)
     {
 	sem_wait(semaphore1);
-	if(debug) fprintf(err_fp, "debugger: PC = %x pid = %d\n",
-		(*PC), pid); fflush(err_fp);
+	// if(debug) fprintf(err_fp, "state: PC = %x pid = %d\n", (*PC), pid); fflush(err_fp);
 	if((*PC) == 0) // exit if PC == 0
 	{
 	    sem_post(semaphore1);
 	    curses_end();
 	    exit(1);
 	}
-	debugger_update();
+	state_update();
 	sem_post(semaphore1);
-	debugger_display();
+	state_display();
 	usleep(16000); // around 60 Hz
     }
     curses_end();

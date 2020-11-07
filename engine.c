@@ -9,9 +9,9 @@
 
 #define SCREEN_WIDTH 64
 #define SCREEN_HEIGHT 32
-#define RES 10
+#define RES 16
 #define FPS 60     // frames per second
-#define InstPS 100 // instructions per second
+#define InstPS 200 // instructions per second
 
 SDL_Window* window = NULL;
 SDL_Surface* surface = NULL;
@@ -56,7 +56,7 @@ void keypress(int key, int down)
 
     case 'f':
 	keys[0x7] = down;
-	fprintf(err_fp, "keypress: f down=%d pid=%d\n", down, pid); fflush(err_fp);
+	// fprintf(err_fp, "keypress: f down=%d pid=%d\n", down, pid); fflush(err_fp);
 	break;
     case 'g':
 	keys[0x8] = down;
@@ -66,7 +66,7 @@ void keypress(int key, int down)
 	break;
     case 'j':
 	keys[0xE] = down;
-	fprintf(err_fp, "keypress: j down=%d pid=%d\n", down, pid); fflush(err_fp);
+	// fprintf(err_fp, "keypress: j down=%d pid=%d\n", down, pid); fflush(err_fp);
 	break;
 
     case 'v':
@@ -99,13 +99,13 @@ void draw()
     {
 	for(int j=0; j<M; j++)
 	{
-	    r.x = j*RES;
-	    r.y = i*RES;
-	    r.w = RES;
-	    r.h = RES;
+	    r.x = j*RES+1;
+	    r.y = i*RES+1;
+	    r.w = RES-2;
+	    r.h = RES-2;
 
-	    int c = screen_buffer[i][j] * 255;
-	    SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 0, c, 0));
+	    int c = screen_buffer[i][j];
+	    SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, c*74, c*87, c*34));
 	}
     }
     SDL_UpdateWindowSurface(window);
@@ -132,6 +132,7 @@ void game_loop()
 	instStart = SDL_GetTicks(); 
 
         // handle input
+	int flag = 0;
 	while(SDL_PollEvent(&e) != 0) 
 	{
 	    if(e.type == SDL_QUIT)
@@ -139,14 +140,22 @@ void game_loop()
 	    else if(e.type == SDL_KEYDOWN)
 	    {
 		keypress(e.key.keysym.sym, 1);
-		fprintf(err_fp, "sdl_poll: key down : %c\n", e.key.keysym.sym); fflush(err_fp);
+		flag = 1;
 	    }
 	    else if(e.type == SDL_KEYUP)
 	    {
 		keypress(e.key.keysym.sym, 0);
-		fprintf(err_fp, "sdl_poll: key up: %c\n", e.key.keysym.sym); fflush(err_fp);
 	    }
 	}
+	if(debug == 2 && flag == 0)
+	{
+	    // delay to maintain emu_update rate ,i.e, instruction rate
+	    instTime = SDL_GetTicks() - instStart; // instruction duration in ticks (1 tick = 1/1000 second) (for this frame)
+	    if(instTime < instDelay)
+		SDL_Delay(instDelay - instTime); // delay to maintain instruction rate
+	    continue;   
+	}
+
 
         // emulator update
 	emu_update();
@@ -159,7 +168,6 @@ void game_loop()
 	    draw();
 	    if(delay_timer) delay_timer--;
 	    if(sound_timer) sound_timer--;
-	    debugger_update();
 	}
 	lastFrame = frame;
 
@@ -174,7 +182,7 @@ void game_loop()
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    window = SDL_CreateWindow("chip8 emulator", 900, 520, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("chip8 emulator", 820, 480, SCREEN_WIDTH*RES, SCREEN_HEIGHT*RES, SDL_WINDOW_SHOWN);
     surface = SDL_GetWindowSurface(window);
 
     game_loop();

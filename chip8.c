@@ -82,20 +82,34 @@ void load_font()
 void load_manual_test() // 0 print kore atke jabe
 {
     int i = 0x200; 
-    mem[i] = 0xA1; i++;
-    mem[i] = 0x00; i++;  // 0x200: 0xA100 
+    mem[i] = 0x00; i++;
+    mem[i] = 0xE0; i++;  // 0x200: 0x00E0
 
     mem[i] = 0x60; i++;
-    mem[i] = 0x10; i++;  // 0x202: 0x6010 
+    mem[i] = 0x10; i++;  // 0x202: 0x6010
 
     mem[i] = 0x61; i++;
-    mem[i] = 0x02; i++;  // 0x204: 0x6102 
+    mem[i] = 0x05; i++;  // 0x204: 0x6105
+
+    mem[i] = 0x62; i++;
+    mem[i] = 0x00; i++;  // 0x206: 0x6200
+	 
+    mem[i] = 0xA1; i++;
+    mem[i] = 0x00; i++;  // 0x208: 0xA100
+
+    mem[i] = 0xE2; i++;
+    mem[i] = 0xA1; i++;  // 0x20A: 0xE2A1
+
+    mem[i] = 0xA1; i++;
+    mem[i] = 0x05; i++;  // 0x20C: 0xA105
 
     mem[i] = 0xD0; i++;
-    mem[i] = 0x15; i++;  // 0x206: 0xD015 
+    mem[i] = 0x15; i++;  // 0x20E: 0xD015
 
     mem[i] = 0x12; i++;
-    mem[i] = 0x08; i++;  // 0x208: 0x1208 
+    mem[i] = 0x00; i++;  // 0x210: 0x1200
+
+    idx = i;
 }
 
 void draw_sprite(int X, int Y, int N)
@@ -158,7 +172,7 @@ int _8bit_sub(int a, int b)
 }
 
 
-#include "debugger.c"
+#include "internal_state.c"
 
 // init
 void emu_start()
@@ -199,7 +213,7 @@ void emu_start()
     semaphore1 = (sem_t*)create_shared_memory(sizeof(sem_t));
     sem_init(semaphore1, 1, 1);
     pid = fork();
-    if(pid == 0) debugger();
+    if(pid == 0) internal_state();
 }
 
 // update
@@ -402,7 +416,7 @@ void emu_update()
 	if(debug) fprintf(err_fp, "DXYN: draw sprite - %x pid=%d\n", inst, pid);
 	break;
     case 0xE: // ------------------------
-	switch(0x00FF)
+	switch(inst & 0x00FF)
 	{
 	case 0x009E: // skip if key pressed  inst:0xEX9E
 	    X = (inst & 0x0F00)>>8;
@@ -411,6 +425,7 @@ void emu_update()
 	case 0x00A1: // skip if key not pressed  inst:0xEXA1
 	    X = (inst & 0x0F00)>>8;
 	    if(!keys[V[X]]) (*PC) = (*PC)+2;
+	    if(debug) fprintf(err_fp, "EXA1: skip if key not pressed - %x pid=%d\n", inst, pid);
 	    break;
 	default:
 	    fprintf(err_fp, "invalid instruction\n");
@@ -487,13 +502,6 @@ void emu_update()
 
     if(debug)
 	fflush(err_fp);
-
-    if(debug == 2) // step through
-    {
-	int ch = getchar();
-	if(ch == 'x') stop();
-    }
-
 
 }
 
